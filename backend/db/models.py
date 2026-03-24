@@ -17,6 +17,7 @@ class User(Base):
 
     watchlist = relationship("WatchlistItem", back_populates="user", cascade="all, delete")
     alerts = relationship("Alert", back_populates="user", cascade="all, delete")
+    paper_trades = relationship("PaperTrade", back_populates="user", cascade="all, delete")
 
 
 class WatchlistItem(Base):
@@ -75,6 +76,24 @@ class Alert(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", back_populates="alerts")
+
+
+class PaperTrade(Base):
+    __tablename__ = "paper_trades"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    symbol = Column(String, nullable=False)
+    ai_signal = Column(String)           # AI signal that prompted the trade
+    action = Column(String, nullable=False)   # BUY | SELL
+    quantity = Column(Float, default=1.0)
+    entry_price = Column(Float, nullable=False)
+    exit_price = Column(Float, nullable=True)
+    entry_at = Column(DateTime, default=datetime.utcnow)
+    exit_at = Column(DateTime, nullable=True)
+    notes = Column(Text, nullable=True)
+
+    user = relationship("User", back_populates="paper_trades")
 
 
 class MacroSignal(Base):

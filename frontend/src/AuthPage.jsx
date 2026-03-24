@@ -1,13 +1,9 @@
 import { useState } from 'react';
 import api from './api';
-
-const C = {
-  bg: "#080C14", surface: "#0D1420", card: "#111827",
-  border: "#1E2D45", accent: "#00D4FF", text: "#E2EAF4",
-  dim: "#8BA0BC", red: "#FF3D5A", green: "#00E87A",
-};
+import { useTheme } from './theme';
 
 export default function AuthPage({ onAuth }) {
+  const { C, isDark, toggle } = useTheme();
   const [mode, setMode] = useState('login'); // 'login' | 'register'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -61,13 +57,19 @@ export default function AuthPage({ onAuth }) {
       minHeight: '100vh', background: C.bg, display: 'flex',
       alignItems: 'center', justifyContent: 'center',
       fontFamily: "'DM Mono', 'Fira Code', monospace",
+      transition: 'background 0.25s',
     }}>
+      {/* Theme toggle — top right */}
+      <div style={{ position: 'fixed', top: 20, right: 24 }}>
+        <ThemeToggle C={C} isDark={isDark} toggle={toggle} />
+      </div>
+
       <div style={{ width: '100%', maxWidth: 400, padding: '0 20px' }}>
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: 36 }}>
           <div style={{
             width: 44, height: 44, borderRadius: 12, margin: '0 auto 12px',
-            background: `linear-gradient(135deg, ${C.accent}, #0080AA)`,
+            background: `linear-gradient(135deg, ${C.accent}, ${C.accent2})`,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: 22, fontWeight: 900, color: '#fff',
           }}>M</div>
@@ -79,15 +81,16 @@ export default function AuthPage({ onAuth }) {
         <div style={{
           background: C.card, border: `1px solid ${C.border}`,
           borderRadius: 16, padding: '28px 24px',
+          boxShadow: isDark ? `0 8px 40px #00000060` : `0 8px 40px ${C.accent}12`,
         }}>
           {/* Toggle */}
-          <div style={{ display: 'flex', marginBottom: 24, background: C.surface, borderRadius: 8, padding: 3 }}>
+          <div style={{ display: 'flex', marginBottom: 24, background: C.surface, borderRadius: 8, padding: 3, border: `1px solid ${C.border}` }}>
             {['login', 'register'].map(m => (
               <button key={m} onClick={() => { setMode(m); setError(''); }} style={{
                 flex: 1, padding: '7px 0', border: 'none', borderRadius: 6, cursor: 'pointer',
                 fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', fontFamily: 'inherit',
                 background: mode === m ? C.accent : 'transparent',
-                color: mode === m ? '#000' : C.dim,
+                color: mode === m ? '#fff' : C.dim,
                 transition: 'all 0.2s',
               }}>
                 {m.toUpperCase()}
@@ -122,7 +125,8 @@ export default function AuthPage({ onAuth }) {
 
             <button type="submit" disabled={loading} style={{
               marginTop: 4, padding: '11px 0', border: 'none', borderRadius: 8, cursor: 'pointer',
-              background: C.accent, color: '#000', fontSize: 12, fontWeight: 800,
+              background: `linear-gradient(135deg, ${C.accent}, ${C.accent2})`,
+              color: '#fff', fontSize: 12, fontWeight: 800,
               letterSpacing: '0.08em', fontFamily: 'inherit',
               opacity: loading ? 0.6 : 1, transition: 'opacity 0.2s',
             }}>
@@ -130,6 +134,31 @@ export default function AuthPage({ onAuth }) {
             </button>
           </form>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function ThemeToggle({ C, isDark, toggle }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }} onClick={toggle}>
+      <span style={{ fontSize: 10, color: C.dim, letterSpacing: '0.06em', userSelect: 'none' }}>
+        {isDark ? 'DARK' : 'LIGHT'}
+      </span>
+      <div style={{
+        width: 40, height: 22, borderRadius: 11, position: 'relative',
+        background: isDark ? C.accent : C.border,
+        border: `1px solid ${isDark ? C.accent : C.border}`,
+        transition: 'background 0.25s',
+      }}>
+        <div style={{
+          position: 'absolute', top: 2,
+          left: isDark ? 20 : 2,
+          width: 16, height: 16, borderRadius: '50%',
+          background: '#fff',
+          transition: 'left 0.25s',
+          boxShadow: '0 1px 4px #00000030',
+        }} />
       </div>
     </div>
   );

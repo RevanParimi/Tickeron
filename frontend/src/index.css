@@ -2,9 +2,10 @@
 
 body {
   margin: 0;
-  background: #080C14;
+  background: #F2EEFF;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background 0.25s;
 }
 
 #root {

@@ -21,11 +21,12 @@ class AddRequest(BaseModel):
     sector: str = "General"
 
 
-async def _run_and_save(symbol: str, sector: str, asset_type: str, watchlist_id: int, db_url: str):
+async def _run_and_save(symbol: str, sector: str, asset_type: str, watchlist_id: int, db_url: str, user_id: int):
     """Background task: run agent pipeline and persist signal."""
     from agents.graph import run_analysis
     from db.session import AsyncSessionLocal
     from db.models import Signal
+    from main import notify_signal
 
     result = await run_analysis(symbol, sector, asset_type)
 
@@ -46,6 +47,19 @@ async def _run_and_save(symbol: str, sector: str, asset_type: str, watchlist_id:
         )
         db.add(sig)
         await db.commit()
+
+    await notify_signal(
+        user_id=user_id,
+        symbol=symbol,
+        signal=result.get("signal", "HOLD"),
+        confidence=result.get("confidence", 0.5),
+        direction=result.get("direction", "NEUTRAL"),
+        summary=result.get("summary", ""),
+        score_news=result.get("score_news", 50),
+        score_macro=result.get("score_macro", 50),
+        score_sector=result.get("score_sector", 50),
+        score_quant=result.get("score_quant", 50),
+    )
 
 
 @router.get("")
@@ -126,6 +140,7 @@ async def add_to_watchlist(
         body.asset_type,
         item.id,
         settings.database_url,
+        current_user["id"],
     )
 
     return {"status": "queued", "symbol": body.symbol.upper(), "watchlist_id": item.id}

@@ -1,6 +1,6 @@
 # MarketPulse AI 📈
 npm run dev
-uvicorn main:app --reload --port 800
+uvicorn main:app --reload --port 8000
 
 > **AI-powered trend intelligence for Indian markets.**
 > Groww is the restaurant. We're the Swiggy.
