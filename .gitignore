@@ -1,1 +1,3 @@
 .tickeron
+__pychache__/
+*.pyc

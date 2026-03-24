@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import api from "./api";
 
 const COLORS = {
   bg: "#080C14",
@@ -146,68 +147,161 @@ function AgentFlowTab() {
 }
 
 function WatchlistTab() {
+  const [watchlist, setWatchlist] = useState([]);
+  const [signals, setSignals] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [adding, setAdding] = useState(false);
+  const [newSymbol, setNewSymbol] = useState("");
+  const [newSector, setNewSector] = useState("");
+  const [addError, setAddError] = useState("");
+
+  async function fetchWatchlist() {
+    try {
+      const { data } = await api.get("/watchlist");
+      setWatchlist(data);
+      // Fetch signals for each item
+      data.forEach(async (item) => {
+        try {
+          const { data: sig } = await api.get(`/signal/${item.symbol}`);
+          setSignals(prev => ({ ...prev, [item.symbol]: sig }));
+        } catch (_) {}
+      });
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => { fetchWatchlist(); }, []);
+
+  async function handleAdd(e) {
+    e.preventDefault();
+    setAddError("");
+    setAdding(true);
+    try {
+      await api.post("/watchlist", {
+        symbol: newSymbol.toUpperCase(),
+        sector: newSector || "Unknown",
+        asset_type: "equity",
+      });
+      setNewSymbol(""); setNewSector("");
+      await fetchWatchlist();
+    } catch (err) {
+      setAddError(err.response?.data?.detail || "Failed to add symbol");
+    } finally {
+      setAdding(false);
+    }
+  }
+
+  const signalColor = (s) => ({ BUY: COLORS.green, HOLD: COLORS.gold, WATCH: COLORS.dim, ACCUMULATE: COLORS.accent, AVOID: COLORS.red }[s] || COLORS.dim);
+
   return (
     <div style={{ paddingTop: 24 }}>
       <p style={{ color: COLORS.dim, fontSize: 13, letterSpacing: "0.04em", marginBottom: 16 }}>
         MY WATCHLIST — AI SIGNAL OVERLAY
       </p>
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {mockWatchlist.map(item => {
-          const up = item.change >= 0;
-          const signalColor = { BUY: COLORS.green, HOLD: COLORS.gold, WATCH: COLORS.dim, ACCUMULATE: COLORS.accent }[item.signal];
-          return (
-            <div key={item.id} style={{
-              background: COLORS.card, border: `1px solid ${COLORS.border}`,
-              borderRadius: 12, padding: "14px 18px",
-              display: "flex", alignItems: "center", gap: 16, cursor: "pointer",
-              transition: "border-color 0.2s",
-            }}
-              onMouseEnter={e => e.currentTarget.style.borderColor = COLORS.accent}
-              onMouseLeave={e => e.currentTarget.style.borderColor = COLORS.border}
-            >
-              <div style={{ flex: "0 0 48px" }}>
-                <div style={{ color: COLORS.text, fontSize: 13, fontWeight: 700 }}>{item.symbol}</div>
-                <div style={{ color: COLORS.muted, fontSize: 10 }}>{item.sector}</div>
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ color: COLORS.dim, fontSize: 11 }}>{item.name}</div>
-              </div>
-              <MiniSparkline up={up} />
-              <div style={{ textAlign: "right", flex: "0 0 70px" }}>
-                <div style={{ color: COLORS.text, fontSize: 14, fontWeight: 600 }}>₹{item.price}</div>
-                <div style={{ color: up ? COLORS.green : COLORS.red, fontSize: 11 }}>
-                  {up ? "▲" : "▼"} {Math.abs(item.change)}%
+
+      {/* Add symbol form */}
+      <form onSubmit={handleAdd} style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+        <input
+          value={newSymbol} onChange={e => setNewSymbol(e.target.value)}
+          placeholder="Symbol (e.g. RELIANCE)" required
+          style={{
+            flex: "1 1 140px", padding: "8px 12px", background: COLORS.card,
+            border: `1px solid ${COLORS.border}`, borderRadius: 8,
+            color: COLORS.text, fontSize: 12, fontFamily: "inherit", outline: "none",
+          }}
+        />
+        <input
+          value={newSector} onChange={e => setNewSector(e.target.value)}
+          placeholder="Sector (e.g. Energy)"
+          style={{
+            flex: "1 1 120px", padding: "8px 12px", background: COLORS.card,
+            border: `1px solid ${COLORS.border}`, borderRadius: 8,
+            color: COLORS.text, fontSize: 12, fontFamily: "inherit", outline: "none",
+          }}
+        />
+        <button type="submit" disabled={adding} style={{
+          padding: "8px 18px", background: COLORS.accent, border: "none",
+          borderRadius: 8, color: "#000", fontSize: 11, fontWeight: 800,
+          cursor: "pointer", fontFamily: "inherit", letterSpacing: "0.06em",
+          opacity: adding ? 0.6 : 1,
+        }}>
+          {adding ? "ADDING..." : "+ ADD"}
+        </button>
+      </form>
+      {addError && <div style={{ color: COLORS.red, fontSize: 11, marginBottom: 10 }}>{addError}</div>}
+
+      {/* List */}
+      {loading ? (
+        <div style={{ color: COLORS.dim, fontSize: 12, textAlign: "center", padding: "40px 0" }}>Loading watchlist...</div>
+      ) : watchlist.length === 0 ? (
+        <div style={{ color: COLORS.dim, fontSize: 12, textAlign: "center", padding: "40px 0" }}>
+          No symbols yet. Add one above to start getting AI signals.
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {watchlist.map(item => {
+            const sig = signals[item.symbol];
+            const sc = signalColor(sig?.signal);
+            const confidence = sig ? Math.round((sig.confidence || 0.5) * 100) : null;
+            return (
+              <div key={item.id} style={{
+                background: COLORS.card, border: `1px solid ${COLORS.border}`,
+                borderRadius: 12, padding: "14px 18px",
+                display: "flex", alignItems: "center", gap: 16, cursor: "pointer",
+                transition: "border-color 0.2s",
+              }}
+                onMouseEnter={e => e.currentTarget.style.borderColor = COLORS.accent}
+                onMouseLeave={e => e.currentTarget.style.borderColor = COLORS.border}
+              >
+                <div style={{ flex: "0 0 60px" }}>
+                  <div style={{ color: COLORS.text, fontSize: 13, fontWeight: 700 }}>{item.symbol}</div>
+                  <div style={{ color: COLORS.muted, fontSize: 10 }}>{item.sector || "—"}</div>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ color: COLORS.dim, fontSize: 11 }}>{item.asset_type?.toUpperCase()}</div>
+                  {sig?.summary && (
+                    <div style={{ color: COLORS.muted, fontSize: 10, marginTop: 3, lineHeight: 1.4, maxWidth: 400 }}>
+                      {sig.summary.slice(0, 90)}…
+                    </div>
+                  )}
+                </div>
+                {confidence !== null && (
+                  <div style={{ flex: "0 0 80px" }}>
+                    <div style={{ fontSize: 10, color: COLORS.dim, marginBottom: 4 }}>CONFIDENCE</div>
+                    <div style={{ height: 4, background: COLORS.border, borderRadius: 4 }}>
+                      <div style={{
+                        height: 4, borderRadius: 4, width: `${confidence}%`,
+                        background: confidence > 70 ? COLORS.green : confidence > 50 ? COLORS.gold : COLORS.red
+                      }} />
+                    </div>
+                    <div style={{ fontSize: 10, color: COLORS.dim, marginTop: 3 }}>{confidence}%</div>
+                  </div>
+                )}
+                <div style={{
+                  background: sig ? `${sc}18` : COLORS.surface,
+                  border: `1px solid ${sig ? sc : COLORS.border}`,
+                  color: sig ? sc : COLORS.dim,
+                  fontSize: 10, fontWeight: 700,
+                  padding: "3px 10px", borderRadius: 20, letterSpacing: "0.08em",
+                  whiteSpace: "nowrap",
+                }}>
+                  {sig ? sig.signal : "PENDING"}
                 </div>
               </div>
-              {/* Sentiment bar */}
-              <div style={{ flex: "0 0 80px" }}>
-                <div style={{ fontSize: 10, color: COLORS.dim, marginBottom: 4 }}>SENTIMENT</div>
-                <div style={{ height: 4, background: COLORS.border, borderRadius: 4 }}>
-                  <div style={{
-                    height: 4, borderRadius: 4,
-                    width: `${item.sentiment}%`,
-                    background: item.sentiment > 70 ? COLORS.green : item.sentiment > 50 ? COLORS.gold : COLORS.red
-                  }} />
-                </div>
-                <div style={{ fontSize: 10, color: COLORS.dim, marginTop: 3 }}>{item.sentiment}%</div>
-              </div>
-              <div style={{
-                background: `${signalColor}18`, border: `1px solid ${signalColor}`,
-                color: signalColor, fontSize: 10, fontWeight: 700,
-                padding: "3px 10px", borderRadius: 20, letterSpacing: "0.08em"
-              }}>
-                {item.signal}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
+
       <div style={{
         marginTop: 16, padding: "12px 16px",
         background: "#0A1829", border: `1px solid ${COLORS.border}`,
         borderRadius: 10, color: COLORS.muted, fontSize: 11
       }}>
-        ⚠️ Signals are AI-generated trend estimates based on public data. Not SEBI-registered financial advice.
+        Signals are AI-generated trend estimates based on public data. Not SEBI-registered financial advice.
       </div>
     </div>
   );
@@ -462,7 +556,7 @@ function OverviewTab() {
   );
 }
 
-export default function App() {
+export default function App({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState(0);
   const [time, setTime] = useState(new Date());
   const [marketOpen, setMarketOpen] = useState(true);
@@ -478,7 +572,7 @@ export default function App() {
     <div style={{
       background: COLORS.bg, minHeight: "100vh", color: COLORS.text,
       fontFamily: "'DM Mono', 'Fira Code', monospace",
-      maxWidth: 720, margin: "0 auto", padding: "0 0 60px"
+      maxWidth: 960, margin: "0 auto", padding: "0 0 60px"
     }}>
       {/* Header */}
       <div style={{
@@ -499,15 +593,32 @@ export default function App() {
             <div style={{ fontSize: 9, color: COLORS.dim, letterSpacing: "0.08em" }}>AI TREND INTELLIGENCE</div>
           </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{
-            width: 6, height: 6, borderRadius: "50%",
-            background: marketOpen ? COLORS.green : COLORS.red,
-            boxShadow: `0 0 6px ${marketOpen ? COLORS.green : COLORS.red}`
-          }} />
-          <span style={{ fontSize: 10, color: COLORS.dim }}>
-            {time.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })} IST
-          </span>
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{
+              width: 6, height: 6, borderRadius: "50%",
+              background: marketOpen ? COLORS.green : COLORS.red,
+              boxShadow: `0 0 6px ${marketOpen ? COLORS.green : COLORS.red}`
+            }} />
+            <span style={{ fontSize: 10, color: COLORS.dim }}>
+              {time.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })} IST
+            </span>
+          </div>
+          {user && (
+            <span style={{ fontSize: 10, color: COLORS.dim }}>
+              {user.name}
+            </span>
+          )}
+          {onLogout && (
+            <button onClick={onLogout} style={{
+              background: "none", border: `1px solid ${COLORS.border}`,
+              color: COLORS.dim, fontSize: 9, padding: "4px 10px",
+              borderRadius: 6, cursor: "pointer", fontFamily: "inherit",
+              letterSpacing: "0.06em",
+            }}>
+              LOGOUT
+            </button>
+          )}
         </div>
       </div>
 

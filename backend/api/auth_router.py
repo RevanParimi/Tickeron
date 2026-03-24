@@ -6,7 +6,7 @@ from pydantic import BaseModel, EmailStr
 
 from db.session import get_db
 from db.models import User
-from core.auth import hash_password, verify_password, create_access_token
+from core.auth import hash_password, verify_password, create_access_token, get_current_user as get_current_user_dep
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -61,5 +61,3 @@ async def me(current_user: dict = Depends(get_current_user_dep)):
     return current_user
 
 
-# Import here to avoid circular
-from core.auth import get_current_user as get_current_user_dep

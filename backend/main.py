@@ -55,9 +55,9 @@ manager = ConnectionManager()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
-    print("✅ Database initialized")
+    print("Database initialized")
     yield
-    print("👋 Shutting down")
+    print("Shutting down")
 
 
 # ── App ───────────────────────────────────────────────────────────────────────
@@ -70,7 +70,8 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
+    #allow_origins=settings.cors_origins,
+    allow_origins=settings.get_cors_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

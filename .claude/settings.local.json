@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(.tickeron/Scripts/python.exe -m uvicorn --version)",
+      "Bash(\"e:\\\\AI projects\\\\StockAI\\\\.tickeron\\\\Scripts\\\\python.exe\" -c \"import main\")",
+      "Bash(ls \"e:\\\\AI projects\\\\StockAI\\\\backend\"\" && cat \"e:AI projectsStockAIbackend.env\" 2>/dev/null || echo \".env not found \")",
+      "Bash(\"e:/AI projects/StockAI/.tickeron/Scripts/python.exe\" -c \"import main; print\\(''OK''\\)\")"
+    ]
+  }
+}
